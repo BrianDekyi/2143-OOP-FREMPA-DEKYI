@@ -1,7 +1,7 @@
 /*
-Author: Class Warfare
-Course: COMP 220, Computer Programming II
-Date: 09/25/14
+Author: Brian Frempa-Dekyi
+Course: OOP
+Date: 03/26/2020
 Description: The War class header file.
 */
 
