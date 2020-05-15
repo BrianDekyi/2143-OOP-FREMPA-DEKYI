@@ -6,7 +6,7 @@
 
 using namespace std;
 
-struct ForeColor{
+struct ForeColor {
     string base;
     string black;
     string red;
