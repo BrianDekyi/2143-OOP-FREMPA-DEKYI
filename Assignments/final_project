@@ -1,0 +1,376 @@
+"""                   
+ Name:  Brian Frempa-Dekyi
+ Email: brian.dekyi@yahoo.com
+ Program: PO3 (Final Project)
+ Title: Modeling Covid19
+ Course: CMPS 2143
+ Semester: Spring 2020
+ Description: This code runs a pygame program to visualize
+ the latest pandemic called COVID19 using the SIR model
+                             
+"""
+
+import pygame
+import random
+import math
+from datetime import datetime
+import json
+import os
+
+class simulation():
+    def __init__(self):
+        self.days = 1
+        self.infected = 0
+        self.deaths = 0
+        self.maxdays = 50
+
+    def set_days(self):
+        self.days += 1
+
+    def runsim(self, model):
+        pygame.init()
+
+        random.seed(datetime.now())
+        # name of project 
+        pygame.display.set_caption('Covid-19 Simulation')
+
+        # creates the drawing window
+        screen = pygame.display.set_mode([Config["width"], Config["height"]])
+
+        sprites_list = pygame.sprite.Group()
+
+        # the list that holds all the sprites
+        population = []
+
+        # sets font
+        font = pygame.font.Font('Roboto-Regular.ttf', 20)
+
+      
+        for i in range(Config["population_count"]):
+            
+            population.append(Person(Config["width"], Config["height"], model.SIR[i],Config["sprite_width"],Config["sprite_height"],Config["sprite_speed"])) 
+            sprites_list.add(population[-1])  
+
+        clock=pygame.time.Clock() 
+        seconds = 0
+
+        running = True
+
+        while running:
+
+            for event in pygame.event.get():
+                if event.type == pygame.QUIT:
+                    running = False
+
+                if event.type == pygame.MOUSEBUTTONUP:
+                    pos = pygame.mouse.get_pos()
+                   
+                    population.append(Person(Config["width"], Config["height"], model.SIR[50],15,15,1,pos[0],pos[1])) 
+
+                    sprites_list.add(population[-1]) 
+
+
+            # fills the background color with black
+            screen.fill((20, 30, 30))
+
+    
+            for i in range(len(population)):
+                population[i].move()
+
+      
+            for j in range(len(population)):
+                if population[i] != population[j]:
+                    collided = population[i].checkCollide(
+                        population[j])
+                    if collided:
+                        dx, dy = population[i].getDxDy()
+                        population[j].setDxDy(dx * -1, dy * -1)
+
+            # checks to see if someone recovered
+            for i in range(len(population)):
+                population[i].recover(self.days)
+
+            sprites_list.draw(screen)
+
+            # counts the infected each time
+            for i in range(len(population)):
+                if population[i].state == "infected":
+                    self.infected += 1
+
+            # renders the text into a text box
+            text = font.render("Day " + str(self.days) + " Infected: " + str(self.infected) 
+            + " Deaths: " + str(self.deaths), 
+            True, (30, 255, 30), (30, 30, 255))
+            textbox = text.get_rect()
+
+            # creates the boundaries 
+            textbox.right = Config["width"]
+            textbox.bottom = Config["height"]
+
+            # puts text on screen
+            screen.blit(text, textbox)
+
+            # flips display
+            pygame.display.flip()
+
+            if seconds % 60 == 0:
+                self.set_days()
+
+                for i in range(len(population)):
+                    if population[i].death() == True and population[i].state == "infected":
+                        sprites_list.remove(population[i])
+                        self.deaths += 1
+
+            # number of fps 
+            clock.tick(40) 
+
+            Config["myClock"] += 1
+            seconds += 1
+            self.infected = 0
+
+           
+            if self.days > self.maxdays:
+                running = False
+
+
+class virus():
+    days_infected = 14
+    fatality_rate = 5
+    infection_rate = 80h
+
+# creates a SIR model class
+class SIR_Model():
+    SIR_images = {
+        "yellow":  "pac_yellow.png",
+        "red" :  "pac_red_blur.png",
+        "green":  "pac_green.png",
+    }
+
+    def __init__(self):
+        self.initial_infect = .20
+        self.recovered_prob = .10
+        self.susceptible_prob = .70
+        self.SIR = []
+    
+    def make_model(self):
+
+        S = ["S"] * int(self.susceptible_prob * 100)
+        I = ["I"] * int(self.initial_infect * 100)
+        R = ["R"] * int(self.recovered_prob * 100)
+
+        self.SIR = S + I + R
+
+        random.shuffle(self.SIR)
+
+# reads in data from a json file into a dictionary
+if os.path.isfile("config.json"):
+
+    f = open("config.json", "r")
+
+    data = f.read()
+
+    Config = json.loads(data)
+
+class Person(pygame.sprite.Sprite):
+  
+    def __init__(self,
+                 screen_width,
+                 screen_height,
+                 SIR,
+                 width=15,
+                 height=15,
+                 speed=4,inx=None,iny=None):
+
+        super().__init__()
+
+        self.id = Config["pid"]
+        Config["pid"] +=1
+
+        
+        self.screen_width = screen_width
+        self.screen_height = screen_height
+
+        # size of sprite
+        self.width = width
+        self.height = height
+
+        # x and y directions
+        self.dx = 0
+        self.dy = 0
+
+        while self.dx + self.dy == 0:
+            self.dx = random.choice([1, -1, 0])
+            self.dy = random.choice([1, -1, 0])
+
+
+        self.speed = speed
+        self.original_speed = speed
+
+
+        if SIR == "S":
+            self.state = "susceptible"
+            self.color = "yellow"
+            self.dayinfected = -999
+
+        elif SIR == "I":
+            self.state = "infected"
+            self.color = "red"
+            self.dayinfected = 1
+        
+        else:
+            self.state = "recovered"
+            self.color = "green"
+            self.dayinfected = -999
+
+
+        self.image = pygame.image.load(SIR_Model.SIR_images[self.color])
+        
+        # scales picture
+        self.image = pygame.transform.scale(self.image,
+                                            (self.width, self.height))
+
+       
+        if inx is None:
+            
+            self.x = int(random.random() * self.screen_width)
+        else:
+            self.x = inx
+
+        if iny is None:
+           
+            self.y = int(random.random() * self.screen_height)
+        else:
+            self.y = iny
+
+        self.rect = self.image.get_rect(center=(self.x, self.y))
+
+
+    def setDxDy(self, dx, dy):
+        self.dx = dx
+        self.dy = dy
+
+
+    def getDxDy(self):
+        return (self.dx, self.dy)
+
+    # changes the direction before impact
+    def changeDirection(self, sides_contacted):
+        if sides_contacted["top"]:
+            self.dy = 1
+        if sides_contacted["bottom"]:
+            self.dy = -1
+        if sides_contacted["left"]:
+            self.dx = 1
+        if sides_contacted["right"]:
+            self.dx = -1
+
+    # moves the sprites around
+    def move(self):
+
+        sides_contacted = self.checkWalls()
+
+        self.changeDirection(sides_contacted)
+
+        if self.dx < 0:
+            self.rect.x -= self.speed
+        elif self.dx > 0:
+            self.rect.x += self.speed
+
+        if self.dy < 0:
+            self.rect.y -= self.speed
+        elif self.dy > 0:
+            self.rect.y += self.speed
+
+    def checkCollide(self, other):
+        sides_contacted = {
+            "top": False,
+            "bottom": False,
+            "left": False,
+            "right": False
+        }
+
+        if self.rect.colliderect(other.rect):
+
+            if self.rect.top < other.rect.top:
+                sides_contacted["bottom"] = True
+                self.rect.y -= abs(self.rect.y - other.rect.y) // 8
+            if self.rect.left < other.rect.left:
+                sides_contacted["right"] = True
+                self.rect.x -= abs(self.rect.x - other.rect.x) // 8
+            if self.rect.right > other.rect.right:
+                sides_contacted["left"] = True
+                self.rect.x += abs(self.rect.x - other.rect.x) // 8
+            if self.rect.bottom > other.rect.bottom:
+                sides_contacted["top"] = True
+                self.rect.y += abs(self.rect.y - other.rect.y) // 8
+            
+            infect_chance = random.randint(0, 100)
+
+            # computes whether a person was infected or not
+            if (infect_chance < virus.infection_rate and self.state == "susceptible" and 
+            other.state == "infected"):
+                self.state = "infected"
+                self.color = "red"
+                self.image = pygame.image.load(SIR_Model.SIR_images[self.color])
+                self.image = pygame.transform.scale(self.image,(self.width, self.height))
+
+            if (infect_chance < virus.infection_rate and other.state == "susceptible" and 
+            self.state == "infected"):
+                other.state = "infected"
+                other.color = "red"
+                other.image = pygame.image.load(SIR_Model.SIR_images[other.color])
+                other.image = pygame.transform.scale(other.image,(other.width, other.height))
+            
+            self.changeDirection(sides_contacted)
+            return True
+
+        return False
+
+  
+    def checkWalls(self):
+        sides = {"top": False, "bottom": False, "left": False, "right": False}
+
+        if self.rect.top <= 0:
+            sides["top"] = True
+        if self.rect.left <= 0:
+            sides["left"] = True
+        if self.rect.right >= self.screen_width:
+            sides["right"] = True
+        if self.rect.bottom >= self.screen_height:
+            sides["bottom"] = True
+
+        return sides
+    
+    def death(self):
+        dead = False
+        die_chance = random.randint(0, 100)
+
+        if die_chance < virus.fatality_rate and self.state == "infected":
+            dead = True
+
+        return dead
+
+    def recover(self, day):
+        if day - self.dayinfected > virus.days_infected:
+            self.state = "recovered"
+            self.image = pygame.image.load(SIR_Model.SIR_images["green"])
+            self.image = pygame.transform.scale(self.image,
+                                                (self.width, self.height))
+            
+
+
+if __name__=='__main__':
+
+    # creates instances of sim 
+    sim = simulation()
+
+    # creates instances of model classes
+    model = SIR_Model()
+
+    model.make_model() 
+    # creates the SIR model
+
+    sim.runsim(model) 
+    # runs Covid-19 Simulation
+
+    pygame.quit()
